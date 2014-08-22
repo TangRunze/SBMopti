@@ -5,12 +5,14 @@ clear all
 
 % Parameter Setting
 nVertex = 300;
+epsilon = 0.1;
 gStart = 1;
 gEnd = 1000;
 
 ind = [];
 for iGraph = gStart:gEnd
-    if exist(['./results/results-SBMopti-real-graph' num2str(iGraph) '.mat'])
+    if exist(['./results/results-SBMopti-sim-n' num2str(nVertex) '-eps' ...
+            num2str(epsilon) '-graph' num2str(iGraph) '.mat'])
         ind = [ind iGraph];
     end
 end
@@ -21,7 +23,8 @@ errorASGE = zeros(1, maxIter);
 errorOpti = zeros(1, maxIter);
 
 for iInd = 1:maxIter
-    load(['./results/results-SBMopti-real-graph' num2str(ind(iInd)) '.mat']);
+    load(['./results/results-SBMopti-sim-n' num2str(nVertex) '-eps' ...
+            num2str(epsilon) '-graph' num2str(ind(iInd)) '.mat']);
     errorASGE(iInd) = errorRateASGE;
     errorOpti(iInd) = errorRateOpti;
 end

@@ -1,4 +1,5 @@
-function [] = sbmopti(nBlock, gStart, gEnd, nCore, lambda, maxIter, tol)
+function [] = sbmoptisim(nVertex, nBlock, epsilonInB, gStart, gEnd, ...
+    nCore, lambda, maxIter, tol)
 
 %% --- Parameter Setting ---
 % nVertex selects the number of vertices in the graph.
@@ -11,7 +12,7 @@ function [] = sbmopti(nBlock, gStart, gEnd, nCore, lambda, maxIter, tol)
 dimLatentPosition = nBlock;
 
 % true block proportion
-% rho = repmat(1/nBlock, 1, nBlock);
+rho = repmat(1/nBlock, 1, nBlock);
 
 % epsilonInB controls the true model. The probability matrix
 %       B = (0.5 - epsilonInB)*J + 2*epsilonInB*I
@@ -19,28 +20,36 @@ dimLatentPosition = nBlock;
 % epsilonInB = 0.1;
 
 %% --- Default Parameter Setting ---
-if (nargin < 7)
+if (nargin < 9)
     tol = 1e-4;
 end
 
-if (nargin < 6)
+if (nargin < 8)
     maxIter = 100;
 end
 
-if (nargin < 5)
+if (nargin < 7)
     lambda = 1;
 end
 
-if (nargin < 4)
+if (nargin < 6)
     nCore = 1;
 end
 
-if (nargin < 3)
+if (nargin < 5)
     error('Not enough input!')
+end
+
+if ((ceil(nVertex) ~= floor(nVertex)) || (nVertex <= 0))
+    error('Number of vertices should be a positive integer!')
 end
 
 if ((ceil(nBlock) ~= floor(nBlock)) || (nBlock <= 0))
     error('Number of blocks should be a positive integer!')
+end
+
+if ((epsilonInB < 0) || (epsilonInB > 0.5))
+    error('Epsilon should be inside [0, 0.5]!')
 end
 
 if ((ceil(gStart) ~= floor(gStart)) || (ceil(gEnd) ~= floor(gEnd)) || ...
@@ -50,6 +59,16 @@ end
 
 if (gStart > gEnd)
     error('gStart should be less or equal to gEnd!')
+end
+
+% block probability matrix
+B = (0.5 - epsilonInB)*ones(nBlock, nBlock) + 2*epsilonInB*eye(nBlock);
+
+% true tau_star (1-by-nVertex)
+tauStar = [];
+nVectorStar = nVertex*rho;
+for i = 1:nBlock
+    tauStar = [tauStar, i*ones(1, nVectorStar(i))];
 end
 
 %% --- Parallel Computing ---
@@ -64,21 +83,24 @@ parfor iGraph = gStart:gEnd
     %% --- Generate/Read Data ---
     % Generate data if there does not exist one, otherwise read the
     % existing data.
-    [nVertex, adjMatrix, nuHat, ~, tauHat, ~, tauStar] = ...
-        datareader(nBlock, dimLatentPosition, iGraph);
+    [adjMatrix, nuHat, ~, tauHat, ~] = ...
+        datagenerator(nVertex, nBlock, dimLatentPosition, B, rho, ...
+        epsilonInB, iGraph);
     xHat = asge(adjMatrix, dimLatentPosition);
     
     %% --- ASGE ---
     errorRateASGE = errorratecalculator(tauStar, tauHat, nVertex, nBlock);
     
-    saveFile = ['./results/results-SBMopti-real-graph' num2str(iGraph) ...
-        '.mat'];
+    saveFile = ['./results/results-SBMopti-sim-n' num2str(nVertex) ...
+        '-eps' num2str(epsilonInB) '-graph' num2str(iGraph) '.mat'];
     if exist(saveFile, 'file') == 0
         %% --- Solve Optimization Problem ---
         options = optimoptions('fmincon', 'TolX', 1e-6, ...
-            'MaxIter', 10000, 'MaxFunEvals', 10000);
-        projectoptions = optimoptions('fmincon', 'TolX', 1e-6, ...
-            'MaxIter', 10000, 'MaxFunEvals', 10000);
+            'MaxIter', 10000, 'MaxFunEvals', 10000, ...
+            'Algorithm', 'interior-point', 'GradObj', 'on');
+        % Algorithm: 'interior-point', 'trust-region-reflective', 'sqp', 'active-set'
+        projectoptions = optimoptions('fmincon', 'TolX', 1e-6, 'MaxIter', ...
+            10000, 'MaxFunEvals', 10000);
         
         hasConverge = 0;
         iter = 0;
@@ -91,7 +113,7 @@ parfor iGraph = gStart:gEnd
             reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
             [], [], [], [], - ones(dimLatentPosition^2, 1), ...
             ones(dimLatentPosition^2, 1), @(x) ...
-            projectconditionfun(x, nVertex, dimLatentPosition, xHatTmp),...
+            projectconditionfun(x, nVertex, dimLatentPosition, xHatTmp), ...
             projectoptions);
         rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
             dimLatentPosition);

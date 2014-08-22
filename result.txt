@@ -1,0 +1,10 @@
+'interior-point'	244.798196 seconds
+ASGE	0.3013		[0.2479, 0.3546]	0.3267
+Opti	0.0908		[0.0778, 0.1038]	0.0867
+
+'trust-region-reflective'	time complexity too high!
+
+'sqp'				1174.831501 seconds
+ASGE	0.3012		[0.2479, 0.3546]	0.3267
+Opti	0.0967		[0.0811, 0.1122]	0.0900
+
