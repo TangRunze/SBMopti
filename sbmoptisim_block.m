@@ -1,5 +1,5 @@
 function [] = sbmoptisim_block(nVertex, nBlock, epsilonInB, delta, ...
-    gStart, gEnd, nCore, lambda1, maxIter, tol)
+    gStart, gEnd, nCore, maxIter, tol)
 
 %% --- Parameter Setting ---
 % nVertex selects the number of vertices in the graph.
@@ -20,16 +20,12 @@ rho = repmat(1/nBlock, 1, nBlock);
 % epsilonInB = 0.1;
 
 %% --- Default Parameter Setting ---
-if (nargin < 10)
+if (nargin < 9)
     tol = 1e-4;
 end
 
-if (nargin < 9)
-    maxIter = 100;
-end
-
 if (nargin < 8)
-    lambda1 = 1;
+    maxIter = 100;
 end
 
 if (nargin < 7)
