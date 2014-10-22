@@ -1,4 +1,4 @@
-function [] = sbmoptisim(nVertex, nBlock, epsilonInB, gStart, gEnd, ...
+function [] = sbmoptisim_1step(nVertex, nBlock, epsilonInB, gStart, gEnd, ...
     nCore, lambda, maxIter, tol)
 
 %% --- Parameter Setting ---
@@ -92,11 +92,8 @@ parfor iGraph = gStart:gEnd
     errorRateASGE = errorratecalculator(tauStar, tauHat, nVertex, nBlock);
     
     saveFile = ['./results/results-SBMopti-sim-n' num2str(nVertex) ...
-        '-eps' num2str(epsilonInB) '-lambda' num2str(lambda) ...
-        '-graph' num2str(iGraph) '.mat'];
+        '-eps' num2str(epsilonInB) '-graph' num2str(iGraph) '.mat'];
     if exist(saveFile, 'file') == 0
-        
-        % scatterdata = zeros(3,2);
         
         %% --- Solve Optimization Problem ---
         options = optimoptions('fmincon', 'TolX', 1e-6, ...
@@ -111,7 +108,7 @@ parfor iGraph = gStart:gEnd
         fValueBest = 0;
         xHatTmp = xHat;
         
-        % Pre-projection
+        %% --- Pre-projection Method 1 ---
         rotationMatrix = fmincon(@(x) projectobjectivefun(x, ...
             dimLatentPosition, xHatTmp), ...
             reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
@@ -122,28 +119,72 @@ parfor iGraph = gStart:gEnd
         rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
             dimLatentPosition);
         
+        rotationMatrix = fmincon(@(x) 0, ...
+            reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
+            [], [], [], [], - ones(dimLatentPosition^2, 1), ...
+            ones(dimLatentPosition^2, 1), @(x) ...
+            projectconditionfun(x, nVertex, dimLatentPosition, xHatTmp), ...
+            projectoptions);
+        rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
+            dimLatentPosition);
+        
+        sum(sum((xHatTmp*rotationMatrix < 0) | (xHatTmp*rotationMatrix > 1)))
+        
         % Rotation
         xHatTmp = xHatTmp*rotationMatrix;
         nuHat = nuHat*rotationMatrix;
         
+        sum(sum((xHatTmp < 0) | (xHatTmp > 1)))
+        sum(sum((xHatTmp*xHatTmp' < 0) | (xHatTmp*xHatTmp' > 1)))
+        
+        nv0 = (xHatTmp < 0);
+        xHatTmp(nv0) = 0.0;
+        
+        nv1 = (sum(xHatTmp.^2, 2) > 1);
+        xHatTmp(nv1, :) = xHatTmp(nv1, :)./...
+            repmat(sum(xHatTmp(nv1, :).^2, 2), 1, dimLatentPosition);
+        
+        
+        %% --- Pre-projection Method 2 ---
+%         centerPoint = 1/(1 + sqrt(dimLatentPosition))*...
+%             ones(nVertex, dimLatentPosition);
+%         [~, xHatTmp1, transMatrix] = procrustes_revised(centerPoint, xHatTmp, ...
+%             'scaling', false, 'reflection', false);
+%         % norm(transMatrix.b*xHatTmp*transMatrix.T + transMatrix.c - xHatTmp1)
+%         sum(sum((transMatrix.b*xHatTmp*transMatrix.T < 0) | (transMatrix.b*xHatTmp*transMatrix.T > 1)))
+%         sum(sum((transMatrix.b*xHatTmp*transMatrix.T + transMatrix.c < 0) | ... 
+%         (transMatrix.b*xHatTmp*transMatrix.T + transMatrix.c > 1)))
+        
         fValueOld = objectivefun(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
             adjMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat);
-        % errorOld = errorRateASGE;
         
         while (~hasConverge) && (iter < maxIter)
             iter = iter + 1
-            
-%             objectivefun(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
-%                 adjMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat)
-            
-            % Find the best xHatTmp based on current nuHat, tauHat.
-            [xHatTmp, fValueNew] = fmincon(@(x) objectivefun(x, ...
+
+            % Take 1 step of xHatTmp based on current nuHat, tauHat.
+            [~, grad] = objectivefun(...
+                reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
                 adjMatrix, nuHat, lambda, nVertex, dimLatentPosition, ...
-                tauHat), reshape(xHatTmp, 1, nVertex*dimLatentPosition),...
-                [], [], [], [], zeros(dimLatentPosition*nVertex, 1), ...
-                ones(dimLatentPosition*nVertex, 1), @(x) ...
-                conditionfun(x, nVertex, dimLatentPosition), options);
-            xHatTmp = reshape(xHatTmp, nVertex, dimLatentPosition);
+                tauHat);
+            
+            grad = grad/max(max(abs(grad)));
+            
+            step = 1;
+            xHatCurrent = xHatTmp - step*grad;
+            pHatCurrent = xHatCurrent * xHatCurrent';
+            while (any(any(xHatCurrent < zeros(nVertex, dimLatentPosition))) || ...
+                    any(any(xHatCurrent > ones(nVertex, dimLatentPosition))) || ...
+                    any(any(pHatCurrent < zeros(nVertex, nVertex))) || ...
+                    any(any(pHatCurrent > ones(nVertex, nVertex))))
+                step = step/2
+                xHatCurrent = xHatTmp - step*grad;
+                pHatCurrent = xHatCurrent * xHatCurrent';
+            end
+            xHatTmp = xHatTmp - step*grad;
+            fValueNew = objectivefun(...
+                reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+                adjMatrix, nuHat, lambda, nVertex, dimLatentPosition, ...
+                tauHat);
             
             % Convergence Checking
             if (abs(fValueNew - fValueOld) < tol*fValueOld) && (iter > 1)
@@ -160,14 +201,6 @@ parfor iGraph = gStart:gEnd
                 tauBest = tauHat;
             end
             
-            % Save for scatter plot
-            % errorNew = errorratecalculator(tauStar, tauHat, ...
-            %     nVertex, nBlock);
-            % scatterdata(1, iter) = (fValueOld - fValueNew)/fValueOld;
-            % scatterdata(2, iter) = (fValueOld - fValueTmp)/fValueOld;
-            % scatterdata(3, iter) = errorOld - errorNew;
-            % errorOld = errorNew;
-            
             fValueOld = fValueNew;
         end
         
@@ -177,9 +210,7 @@ parfor iGraph = gStart:gEnd
                 nVertex, nBlock);
             errorRateOptiBest = errorratecalculator(tauStar, tauBest, ...
                 nVertex, nBlock);
-            % parsave(saveFile, errorRateASGE, errorRateOpti, errorRateOptiBest, scatterdata);
-            parsave(saveFile, errorRateASGE, errorRateOpti, ...
-                errorRateOptiBest, fValueNew, fValueBest);
+            parsave(saveFile, errorRateASGE, errorRateOpti, errorRateOptiBest);
         end
     end
 end
