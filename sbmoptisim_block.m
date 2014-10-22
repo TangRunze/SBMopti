@@ -1,4 +1,4 @@
-function [] = sbmoptisim_block(nVertex, nBlock, epsilonInB, delta, ...
+function [] = sbmoptisim_block_std(nVertex, nBlock, epsilonInB, delta, ...
     gStart, gEnd, nCore, lambda1, maxIter, tol)
 
 %% --- Parameter Setting ---
@@ -71,15 +71,19 @@ for i = 1:nBlock
     tauStar = [tauStar, i*ones(1, nVectorStar(i))];
 end
 
+%% --- Optimization Setting ---
+options = optimoptions('fmincon', 'TolX', 1e-6, ...
+    'MaxIter', 10000, 'MaxFunEvals', 10000, ...
+    'Algorithm', 'interior-point'); %, 'GradObj', 'on');
+% Algorithm: 'interior-point', 'trust-region-reflective', 'sqp', 'active-set'
+projectoptions = optimoptions('fmincon', 'TolX', 1e-6, 'MaxIter', ...
+    10000, 'MaxFunEvals', 10000);
+
 %% --- Parallel Computing ---
-% if isempty(gcp('nocreate'))
-%     parpool(nCore);
-% end
 delete(gcp('nocreate'))
 parpool(nCore);
 
-% lambdaVec = [0.1, 0.2, 0.5, 0.8, 1, 2, 5, 10, 20, 50, 100];
-lambdaVec = 0.1;
+lambdaVec = [0.001 0.01 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.99 0.999];
 
 parfor iProbMatrix = gStart:gEnd
     
@@ -91,6 +95,21 @@ parfor iProbMatrix = gStart:gEnd
         tauStar, epsilonInB, delta, iProbMatrix);
     xHat = asge(pMatrix, dimLatentPosition);
     
+    % Pre-projection
+    rotationMatrix = fmincon(@(x) projectobjectivefun(x, ...
+        dimLatentPosition, xHat), ...
+        reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
+        [], [], [], [], - ones(dimLatentPosition^2, 1), ...
+        ones(dimLatentPosition^2, 1), @(x) ...
+        projectconditionfun(x, nVertex, dimLatentPosition, xHat), ...
+        projectoptions);
+    rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
+        dimLatentPosition);
+    
+    % Rotate the latent positions
+    xHat = xHat*rotationMatrix;
+    nuHat0 = nuHat0*rotationMatrix;
+    
     %% --- ASGE ---
     errorRateASGE = errorratecalculator(tauStar, tauHat0, nVertex, nBlock);
     
@@ -101,17 +120,7 @@ parfor iProbMatrix = gStart:gEnd
             '-lambda' num2str(lambda) '-pmatrix' num2str(iProbMatrix) '.mat'];
         
         if exist(saveFile, 'file') == 0
-            
-            % scatterdata = zeros(3,2);
-            
             %% --- Solve Optimization Problem ---
-            options = optimoptions('fmincon', 'TolX', 1e-6, ...
-                'MaxIter', 10000, 'MaxFunEvals', 10000, ...
-                'Algorithm', 'interior-point', 'GradObj', 'on');
-            % Algorithm: 'interior-point', 'trust-region-reflective', 'sqp', 'active-set'
-            projectoptions = optimoptions('fmincon', 'TolX', 1e-6, 'MaxIter', ...
-                10000, 'MaxFunEvals', 10000);
-            
             hasConverge = 0;
             iter = 0;
             fValueBest = 0;
@@ -119,33 +128,14 @@ parfor iProbMatrix = gStart:gEnd
             nuHat = nuHat0;
             tauHat = tauHat0;
             
-            % Pre-projection
-            rotationMatrix = fmincon(@(x) projectobjectivefun(x, ...
-                dimLatentPosition, xHatTmp), ...
-                reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
-                [], [], [], [], - ones(dimLatentPosition^2, 1), ...
-                ones(dimLatentPosition^2, 1), @(x) ...
-                projectconditionfun(x, nVertex, dimLatentPosition, xHatTmp), ...
-                projectoptions);
-            rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
-                dimLatentPosition);
-            
-            % Rotation
-            xHatTmp = xHatTmp*rotationMatrix;
-            nuHat = nuHat*rotationMatrix;
-            
-            fValueOld = objectivefun(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+            fValueOld = objectivefun_std(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
                 pMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat);
-            % errorOld = errorRateASGE;
             
             while (~hasConverge) && (iter < maxIter)
                 iter = iter + 1
                 
-                %             objectivefun(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
-                %                 pMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat)
-                
                 % Find the best xHatTmp based on current nuHat, tauHat.
-                [xHatTmp, fValueNew] = fmincon(@(x) objectivefun(x, ...
+                xHatTmp = fmincon(@(x) objectivefun_std(x, ...
                     pMatrix, nuHat, lambda, nVertex, dimLatentPosition, ...
                     tauHat), reshape(xHatTmp, 1, nVertex*dimLatentPosition),...
                     [], [], [], [], zeros(dimLatentPosition*nVertex, 1), ...
@@ -153,28 +143,29 @@ parfor iProbMatrix = gStart:gEnd
                     conditionfun(x, nVertex, dimLatentPosition), options);
                 xHatTmp = reshape(xHatTmp, nVertex, dimLatentPosition);
                 
+                % Find the best nuHat, tauHat based on current xHatTmp.
+                [tauHat, nuHat] = kmeans(xHatTmp, nBlock);
+                tauHat = tauHat';
+                
+                fValueNew = objectivefun_std(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+                    pMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat);
+                if (fValueNew < fValueBest) || (iter == 1)
+                    fValueBest = fValueNew;
+                    tauBest = tauHat;
+                    xBest = xHatTmp;
+                    nuBest = nuHat;
+                    
+                    fValue0 = objectivefun_std(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+                        pMatrix, nuHat, 0, nVertex, dimLatentPosition, tauHat);
+                    fValue1 = objectivefun_std(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+                        pMatrix, nuHat, 1, nVertex, dimLatentPosition, tauHat);
+                    
+                end
+                
                 % Convergence Checking
                 if (abs(fValueNew - fValueOld) < tol*fValueOld) && (iter > 1)
                     hasConverge = 1;
                 end
-                
-                [tauHat, nuHat] = kmeans(xHatTmp, nBlock);
-                tauHat = tauHat';
-                
-                fValueTmp = objectivefun(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
-                    pMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat);
-                if (fValueTmp < fValueBest) || (iter == 1)
-                    fValueBest = fValueTmp;
-                    tauBest = tauHat;
-                end
-                
-                % Save for scatter plot
-                % errorNew = errorratecalculator(tauStar, tauHat, ...
-                %     nVertex, nBlock);
-                % scatterdata(1, iter) = (fValueOld - fValueNew)/fValueOld;
-                % scatterdata(2, iter) = (fValueOld - fValueTmp)/fValueOld;
-                % scatterdata(3, iter) = errorOld - errorNew;
-                % errorOld = errorNew;
                 
                 fValueOld = fValueNew;
             end
@@ -187,9 +178,83 @@ parfor iProbMatrix = gStart:gEnd
                     nVertex, nBlock);
                 % parsave(saveFile, errorRateASGE, errorRateOpti, errorRateOptiBest, scatterdata);
                 parsave(saveFile, errorRateASGE, errorRateOpti, ...
-                    errorRateOptiBest, fValueNew, fValueBest);
+                    errorRateOptiBest, fValueNew, fValueBest, ...
+                    xBest, nuBest, tauBest, fValue0, fValue1);
             end
         end
+    end
+    
+    %% Consider lambda = 0
+    lambda = 0;
+    
+    saveFile = ['./results/results-SBMopti-Block-sim-n' num2str(nVertex)...
+        '-eps' num2str(epsilonInB) '-delta' num2str(delta) ...
+        '-lambda' num2str(lambda) '-pmatrix' num2str(iProbMatrix) '.mat'];
+    
+    if exist(saveFile, 'file') == 0
+        
+        %% --- Solve Optimization Problem ---
+        xHatTmp = xHat;
+        
+        [tauHat, nuHat] = kmeans(xHatTmp, nBlock);
+        tauHat = tauHat';
+        
+        fValueNew = objectivefun_std(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+            pMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat);
+        fValueBest = fValueNew;
+        
+        fValue0 = fValueBest;
+        fValue1 = objectivefun_std(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+            pMatrix, nuHat, 1, nVertex, dimLatentPosition, tauHat);
+        
+        %% --- Save Results ---
+        errorRateOpti = errorratecalculator(tauStar, tauHat, ...
+            nVertex, nBlock);
+        errorRateOptiBest = errorRateOpti;
+        parsave(saveFile, errorRateASGE, errorRateOpti, ...
+            errorRateOptiBest, fValueNew, fValueBest, ...
+            xHatTmp, nuHat, tauHat, fValue0, fValue1);
+    end
+    
+    %% Consider lambda = 1
+    lambda = 1;
+    
+    saveFile = ['./results/results-SBMopti-Block-sim-n' num2str(nVertex)...
+        '-eps' num2str(epsilonInB) '-delta' num2str(delta) ...
+        '-lambda' num2str(lambda) '-pmatrix' num2str(iProbMatrix) '.mat'];
+    
+    if exist(saveFile, 'file') == 0
+        
+        %% --- Solve Optimization Problem ---
+        nuHat = nuHat0;
+        tauHat = tauHat0;
+        
+        % Find the best xHatTmp based on current nuHat, tauHat.
+        nuHat = fmincon(@(x) objectivefun_std_lambda1(...
+            pMatrix, x, dimLatentPosition, nBlock, tauHat), ...
+            reshape(nuHat, 1, nBlock*dimLatentPosition),...
+            [], [], [], [], zeros(dimLatentPosition*nBlock, 1), ...
+            ones(dimLatentPosition*nBlock, 1), @(x) ...
+            conditionfun(x, nBlock, dimLatentPosition), options);
+        nuHat = reshape(nuHat, nBlock, dimLatentPosition);
+
+        xHatTmp = nuHat(tauHat, :);
+        
+        fValueNew = objectivefun_std(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+            pMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat);
+        fValueBest = fValueNew;
+        
+        fValue1 = fValueBest;
+        fValue0 = objectivefun_std(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
+            pMatrix, nuHat, 0, nVertex, dimLatentPosition, tauHat);
+        
+        %% --- Save Results ---
+        errorRateOpti = errorratecalculator(tauStar, tauHat, ...
+            nVertex, nBlock);
+        errorRateOptiBest = errorRateOpti;
+        parsave(saveFile, errorRateASGE, errorRateOpti, ...
+            errorRateOptiBest, fValueNew, fValueBest, ...
+            xHatTmp, nuHat, tauHat, fValue0, fValue1);
     end
 end
 
