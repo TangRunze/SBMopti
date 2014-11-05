@@ -1,11 +1,11 @@
 function [pMatrix, muHat, sigmaHat, tauHat, pTauHat] = ...
     datagenerator_block(nVertex, nBlock, dimLatentPosition, B, rho, ...
-    tauStar, epsilonInB, delta, iProbMatrix)
+    tauStar, epsilonInB, r, iProbMatrix, projectoptions)
 % Generate data if there does not exist one, otherwise read the
 % existing data.
 
-if exist(['data/sim-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
-        '-delta' num2str(delta) '-pmatrix' int2str(iProbMatrix) '.mat'], ...
+if exist(['data/sim-dir-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
+        '-r' num2str(r) '-pmatrix' int2str(iProbMatrix) '.mat'], ...
         'file') == 0
     
     disp(['Generating Probability Matrix ' int2str(iProbMatrix) '...'])
@@ -13,25 +13,35 @@ if exist(['data/sim-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
     % Get the point-mass latent positions of a pure block model.
     nuStar = asge(B, dimLatentPosition);
     
-    % Generate the noise corresponding to each vertex.
-    noiseTmp = unifrnd(-delta, delta, 2*nVertex, dimLatentPosition);
-    nv = (sum(noiseTmp.^2, 2) <= delta^2);
-    noiseVector = noiseTmp(nv, :);
-    while (size(noiseVector, 1) < nVertex)
-        noiseTmp = unifrnd(0, delta, 2*nVertex, dimLatentPosition);
-        nv = (sum(noiseTmp.^2, 2) <= delta^2);
-        noiseVector = [noiseVector; noiseTmp(nv, :)];
-    end
-    noiseVector = noiseVector(1:nVertex, :);
+    % Pre-projection
+    rotationMatrix = fmincon(@(x) projectobjectivefun(x, ...
+        dimLatentPosition, nuStar), ...
+        reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
+        [], [], [], [], - ones(dimLatentPosition^2, 1), ...
+        ones(dimLatentPosition^2, 1), @(x) ...
+        projectconditionfun(x, dimLatentPosition, dimLatentPosition, ...
+        nuStar), projectoptions);
+    rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
+        dimLatentPosition);
     
-    % Get the probability matrix with noise delta.
-    xNoise = nuStar(tauStar, :) + noiseVector;
-    pMatrix = xNoise*xNoise';
+    % Rotate the latent positions
+    nuStar = nuStar*rotationMatrix;
+    
+    % Generate samples from a Dirichlet distribution centered at true
+    % latent positions.
+    nVec = nVertex * rho;
+    xDirichlet = [];
+    for iBlock = 1:nBlock
+        xDirichlet = [xDirichlet; drchrnd(r*nuStar(iBlock, :), nVec(iBlock))];
+    end
+    
+    % Get the probability matrix with Dirchlet samples.
+    pMatrix = xDirichlet*xDirichlet';
     
     % Obtain estimates from ASGE o GMM.
     xHat = asge(pMatrix, dimLatentPosition);
     
-    gm = fitgmdist(xHat, nBlock, 'Replicates', 10);
+    gm = fitgmdist(xHat, nBlock, 'Replicates', 10, 'Regularize', 1e-12);
     
     tauHat = cluster(gm, xHat)';
     % pihat = gm.PComponents;
@@ -53,13 +63,14 @@ if exist(['data/sim-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
     % legend('Cluster 1','Cluster 2','Cluster 3','Location','NW')
     
     % Save the data
-    save(['data/sim-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
-        '-delta' num2str(delta) '-pmatrix' int2str(iProbMatrix) '.mat'],...
+    save(['data/sim-dir-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
+        '-r' num2str(r) '-pmatrix' int2str(iProbMatrix) '.mat'],...
         'pMatrix', 'tauHat', 'pTauHat', 'muHat', 'sigmaHat');
 else
     % Read the existing data
-    data = load(['data/sim-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
-        '-delta' num2str(delta) '-pmatrix' int2str(iProbMatrix) '.mat']);
+    data = load(['data/sim-dir-n' num2str(nVertex) '-eps' ...
+        num2str(epsilonInB) '-r' num2str(r) '-pmatrix' ...
+        int2str(iProbMatrix) '.mat']);
     pMatrix = data.pMatrix;
     muHat = data.muHat;
     sigmaHat = data.sigmaHat;

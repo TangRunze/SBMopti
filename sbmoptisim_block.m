@@ -1,5 +1,27 @@
-function [] = sbmoptisim_block(nVertex, nBlock, epsilonInB, delta, ...
+function [] = sbmoptisim_block(nVertex, nBlock, epsilonInB, r, ...
     gStart, gEnd, nCore, maxIter, tol)
+
+%% --- Quick Setting ---
+% nVertex = 15;
+% nBlock = 3;
+% dimLatentPosition = nBlock;
+% epsilonInB = 0.2;
+% rho = repmat(1/nBlock, 1, nBlock);
+% tol = 1e-4;
+% maxIter = 100;
+% muB = 0.3;
+% r = 100;
+% B = (muB - epsilonInB)*ones(nBlock, nBlock) + 2*epsilonInB*eye(nBlock);
+% tauStar = [];
+% nVectorStar = nVertex*rho;
+% for i = 1:nBlock
+%     tauStar = [tauStar, i*ones(1, nVectorStar(i))];
+% end
+% options = optimoptions('fmincon', 'TolX', 1e-6, ...
+%     'MaxIter', 10000, 'MaxFunEvals', 10000, ...
+%     'Algorithm', 'interior-point');
+% projectoptions = optimoptions('fmincon', 'TolX', 1e-6, 'MaxIter', ...
+%     10000, 'MaxFunEvals', 10000);
 
 %% --- Parameter Setting ---
 % nVertex selects the number of vertices in the graph.
@@ -88,7 +110,7 @@ parfor iProbMatrix = gStart:gEnd
     % existing data.
     [pMatrix, nuHat0, ~, tauHat0, ~] = ...
         datagenerator_block(nVertex, nBlock, dimLatentPosition, B, rho, ...
-        tauStar, epsilonInB, delta, iProbMatrix);
+        tauStar, epsilonInB, r, iProbMatrix, projectoptions);
     xHat = asge(pMatrix, dimLatentPosition);
     
     % Pre-projection
@@ -111,9 +133,10 @@ parfor iProbMatrix = gStart:gEnd
     
     for lambda = lambdaVec
         
-        saveFile = ['./results/results-SBMopti-Block-sim-n' num2str(nVertex)...
-            '-eps' num2str(epsilonInB) '-delta' num2str(delta) ...
-            '-lambda' num2str(lambda) '-pmatrix' num2str(iProbMatrix) '.mat'];
+        saveFile = ['./results/results-SBMopti-Block-sim-dir-n' ...
+            num2str(nVertex) '-diag' num2str(B(1, 1)) '-offdiag' ...
+            num2str(B(1, 2)) '-r' num2str(r) '-lambda' num2str(lambda) ...
+            '-pmatrix' num2str(iProbMatrix) '.mat'];
         
         if exist(saveFile, 'file') == 0
             %% --- Solve Optimization Problem ---
@@ -183,9 +206,10 @@ parfor iProbMatrix = gStart:gEnd
     %% Consider lambda = 0
     lambda = 0;
     
-    saveFile = ['./results/results-SBMopti-Block-sim-n' num2str(nVertex)...
-        '-eps' num2str(epsilonInB) '-delta' num2str(delta) ...
-        '-lambda' num2str(lambda) '-pmatrix' num2str(iProbMatrix) '.mat'];
+    saveFile = ['./results/results-SBMopti-Block-sim-dir-n' ...
+            num2str(nVertex) '-diag' num2str(B(1, 1)) '-offdiag' ...
+            num2str(B(1, 2)) '-r' num2str(r) '-lambda' num2str(lambda) ...
+            '-pmatrix' num2str(iProbMatrix) '.mat']
     
     if exist(saveFile, 'file') == 0
         
@@ -215,9 +239,10 @@ parfor iProbMatrix = gStart:gEnd
     %% Consider lambda = 1
     lambda = 1;
     
-    saveFile = ['./results/results-SBMopti-Block-sim-n' num2str(nVertex)...
-        '-eps' num2str(epsilonInB) '-delta' num2str(delta) ...
-        '-lambda' num2str(lambda) '-pmatrix' num2str(iProbMatrix) '.mat'];
+    saveFile = ['./results/results-SBMopti-Block-sim-dir-n' ...
+        num2str(nVertex) '-diag' num2str(B(1, 1)) '-offdiag' ...
+        num2str(B(1, 2)) '-r' num2str(r) '-lambda' num2str(lambda) ...
+        '-pmatrix' num2str(iProbMatrix) '.mat']
     
     if exist(saveFile, 'file') == 0
         
