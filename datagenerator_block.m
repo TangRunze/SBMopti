@@ -32,7 +32,8 @@ if exist(['data/sim-dir-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
     nVec = nVertex * rho;
     xDirichlet = [];
     for iBlock = 1:nBlock
-        xDirichlet = [xDirichlet; drchrnd(r*nuStar(iBlock, :), nVec(iBlock))];
+        xDirichlet = [xDirichlet; ...
+            drchrnd(r*nuStar(iBlock, :) + ones(1, dimLatentPosition), nVec(iBlock))];
     end
     
     % Get the probability matrix with Dirchlet samples.
