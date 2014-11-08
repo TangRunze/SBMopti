@@ -1,4 +1,4 @@
-function [] = sbmoptisim_block(nVertex, nBlock, epsilonInB, r, ...
+function [] = sbmoptisim_block(nVertex, nBlock, muB, epsilonInB, r, ...
     gStart, gEnd, nCore, maxIter, tol)
 
 %% --- Quick Setting ---
@@ -42,19 +42,19 @@ rho = repmat(1/nBlock, 1, nBlock);
 % epsilonInB = 0.1;
 
 %% --- Default Parameter Setting ---
-if (nargin < 9)
+if (nargin < 10)
     tol = 1e-4;
 end
 
-if (nargin < 8)
+if (nargin < 9)
     maxIter = 100;
 end
 
-if (nargin < 7)
+if (nargin < 8)
     nCore = 1;
 end
 
-if (nargin < 6)
+if (nargin < 7)
     error('Not enough input!')
 end
 
@@ -64,6 +64,10 @@ end
 
 if ((ceil(nBlock) ~= floor(nBlock)) || (nBlock <= 0))
     error('Number of blocks should be a positive integer!')
+end
+
+if ((muB - epsilonInB < 0) || (muB + epsilonInB > 1))
+    error('Probability matrix invalid!')
 end
 
 if ((epsilonInB < 0) || (epsilonInB > 0.5))
@@ -80,7 +84,7 @@ if (gStart > gEnd)
 end
 
 % block probability matrix
-B = (0.5 - epsilonInB)*ones(nBlock, nBlock) + 2*epsilonInB*eye(nBlock);
+B = (muB - epsilonInB)*ones(nBlock, nBlock) + 2*epsilonInB*eye(nBlock);
 
 % true tau_star (1-by-nVertex)
 tauStar = [];
