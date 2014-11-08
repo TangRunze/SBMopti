@@ -70,10 +70,6 @@ if ((muB - epsilonInB < 0) || (muB + epsilonInB > 1))
     error('Probability matrix invalid!')
 end
 
-if ((epsilonInB < 0) || (epsilonInB > 0.5))
-    error('Epsilon should be inside [0, 0.5]!')
-end
-
 if ((ceil(gStart) ~= floor(gStart)) || (ceil(gEnd) ~= floor(gEnd)) || ...
         (gStart <= 0) || (gEnd <= 0))
     error('gStart/gEnd should be positive integers!')
