@@ -1,37 +1,59 @@
 function [adjMatrix, muHat, sigmaHat, tauHat, pTauHat] = ...
     datagenerator(nVertex, nBlock, dimLatentPosition, B, rho, ...
-    epsilonInB, iGraph)
+    tauStar, r, iGraph, projectoptions)
 % Generate data if there does not exist one, otherwise read the
 % existing data.
 
-% Calculate the sizes
-nVectorStar = nVertex*rho;
-nVectorStarStart = cumsum(nVectorStar);
-nVectorStarStart = [1, nVectorStarStart(1:(end-1)) + 1];
-nVectorStarEnd = cumsum(nVectorStar);
-
-if exist(['data/sim-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
+if exist(['data/sim-dir-n' num2str(nVertex) '-diag' num2str(B(1, 1)) ...
+        '-offdiag' num2str(B(1, 2)) '-r' num2str(r) ...
         '-graph' int2str(iGraph) '.mat'], 'file') == 0
     
-    disp(['Generating graph ' int2str(iGraph) '...'])
+    disp(['Generating Adjacency Matrix ' int2str(iGraph) '...'])
     
-    % Part 1: Generate graph adjacency matrix.
-    adjMatrix = zeros(nVertex);
-    for iBlock = 1:nBlock
-        for jBlock = iBlock:nBlock
-            adjMatrix(nVectorStarStart(iBlock):nVectorStarEnd(iBlock), ...
-                nVectorStarStart(jBlock):nVectorStarEnd(jBlock)) = ...
-                binornd(1, B(iBlock,jBlock), nVectorStar(iBlock), ...
-                nVectorStar(jBlock));
+    % Get the point-mass latent positions of a pure block model.
+    nuStar = asge(B, dimLatentPosition);
+    
+    % Pre-projection
+    rotationMatrix = fmincon(@(x) projectobjectivefun(x, ...
+        dimLatentPosition, nuStar), ...
+        reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
+        [], [], [], [], - ones(dimLatentPosition^2, 1), ...
+        ones(dimLatentPosition^2, 1), @(x) ...
+        projectconditionfun(x, dimLatentPosition, dimLatentPosition, ...
+        nuStar), projectoptions);
+    rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
+        dimLatentPosition);
+    
+    % Rotate the latent positions
+    nuStar = nuStar*rotationMatrix;
+    
+    % Generate samples from a Dirichlet distribution centered at true
+    % latent positions (actually with bias).
+    if (r ~= -1)
+        nVec = nVertex * rho;
+        xDirichlet = [];
+        for iBlock = 1:nBlock
+            xTmp = drchrnd(r*[nuStar(iBlock, :), ...
+                1 - sum(nuStar(iBlock, :))] + ...
+                ones(1, dimLatentPosition + 1), nVec(iBlock));
+            xDirichlet = [xDirichlet; xTmp(:, 1:dimLatentPosition)];
         end
+    else
+        xDirichlet = nuStar(tauStar, :);
     end
+    
+    % Get the probability matrix with Dirchlet samples.
+    pMatrix = xDirichlet*xDirichlet';
+    
+    adjMatrix = reshape(binornd(ones(1, nVertex*nVertex), ...
+        reshape(pMatrix, 1, nVertex*nVertex)), nVertex, nVertex);
     adjMatrix = triu(adjMatrix, 1);
     adjMatrix = adjMatrix + adjMatrix';
     
-    % Part 2: Obtain estimates from ASGE o GMM.
+    % Obtain estimates from ASGE o GMM.
     xHat = asge(adjMatrix, dimLatentPosition);
     
-    gm = fitgmdist(xHat, nBlock, 'Replicates', 10);
+    gm = fitgmdist(xHat, nBlock, 'Replicates', 10, 'Regularize', 1e-12);
     
     tauHat = cluster(gm, xHat)';
     % pihat = gm.PComponents;
@@ -39,27 +61,16 @@ if exist(['data/sim-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
     muHat = gm.mu;
     sigmaHat = gm.Sigma;
     
-    % Plot
-    % cl_nv = false(K,n);
-    % for i = 1:K
-    %     cl_nv(i,:) = (idx == i);
-    % end
-    % scatter(Xhat(cl_nv(1,:),1),Xhat(cl_nv(1,:),2),10,'r+');
-    % hold on
-    % scatter(Xhat(cl_nv(2,:),1),Xhat(cl_nv(2,:),2),10,'bo');
-    % hold on
-    % scatter(Xhat(cl_nv(3,:),1),Xhat(cl_nv(3,:),2),10,'g.');
-    % hold off
-    % legend('Cluster 1','Cluster 2','Cluster 3','Location','NW')
-    
     % Save the data
-    save(['data/sim-n' num2str(nVertex) '-eps' num2str(epsilonInB) ...
-        '-graph' int2str(iGraph) '.mat'], 'adjMatrix', 'tauHat', ...
-        'pTauHat', 'muHat', 'sigmaHat');
+    save(['data/sim-dir-n' num2str(nVertex) '-diag' num2str(B(1, 1)) ...
+        '-offdiag' num2str(B(1, 2)) '-r' num2str(r) ...
+        '-graph' int2str(iGraph) '.mat'],...
+        'adjMatrix', 'tauHat', 'pTauHat', 'muHat', 'sigmaHat');
 else
     % Read the existing data
-    data = load(['data/sim-n' num2str(nVertex) '-eps' ...
-        num2str(epsilonInB) '-graph' int2str(iGraph) '.mat']);
+    data = load(['data/sim-dir-n' num2str(nVertex) '-diag' ...
+        num2str(B(1, 1)) '-offdiag' num2str(B(1, 2)) '-r' num2str(r) ...
+        '-graph' int2str(iGraph) '.mat']);
     adjMatrix = data.adjMatrix;
     muHat = data.muHat;
     sigmaHat = data.sigmaHat;

@@ -1,5 +1,27 @@
-function [] = sbmoptisim(nVertex, nBlock, epsilonInB, gStart, gEnd, ...
-    nCore, lambda, maxIter, tol)
+function [] = sbmoptisim(nVertex, nBlock, muB, epsilonInB, r, ...
+    gStart, gEnd, nCore, maxIter, tol)
+
+%% --- Quick Setting ---
+% nVertex = 15;
+% nBlock = 3;
+% dimLatentPosition = nBlock;
+% epsilonInB = 0.2;
+% rho = repmat(1/nBlock, 1, nBlock);
+% tol = 1e-4;
+% maxIter = 100;
+% muB = 0.3;
+% r = 100;
+% B = (muB - epsilonInB)*ones(nBlock, nBlock) + 2*epsilonInB*eye(nBlock);
+% tauStar = [];
+% nVectorStar = nVertex*rho;
+% for i = 1:nBlock
+%     tauStar = [tauStar, i*ones(1, nVectorStar(i))];
+% end
+% options = optimoptions('fmincon', 'TolX', 1e-6, ...
+%     'MaxIter', 10000, 'MaxFunEvals', 10000, ...
+%     'Algorithm', 'interior-point');
+% projectoptions = optimoptions('fmincon', 'TolX', 1e-6, 'MaxIter', ...
+%     10000, 'MaxFunEvals', 10000);
 
 %% --- Parameter Setting ---
 % nVertex selects the number of vertices in the graph.
@@ -14,29 +36,20 @@ dimLatentPosition = nBlock;
 % true block proportion
 rho = repmat(1/nBlock, 1, nBlock);
 
-% epsilonInB controls the true model. The probability matrix
-%       B = (0.5 - epsilonInB)*J + 2*epsilonInB*I
-% epsilonInB should be inside [0, 0.5].
-% epsilonInB = 0.1;
-
 %% --- Default Parameter Setting ---
-if (nargin < 9)
+if (nargin < 10)
     tol = 1e-4;
 end
 
-if (nargin < 8)
+if (nargin < 9)
     maxIter = 100;
 end
 
-if (nargin < 7)
-    lambda = 1;
-end
-
-if (nargin < 6)
+if (nargin < 8)
     nCore = 1;
 end
 
-if (nargin < 5)
+if (nargin < 7)
     error('Not enough input!')
 end
 
@@ -48,8 +61,8 @@ if ((ceil(nBlock) ~= floor(nBlock)) || (nBlock <= 0))
     error('Number of blocks should be a positive integer!')
 end
 
-if ((epsilonInB < 0) || (epsilonInB > 0.5))
-    error('Epsilon should be inside [0, 0.5]!')
+if ((muB - epsilonInB < 0) || (muB + epsilonInB > 1))
+    error('Probability matrix invalid!')
 end
 
 if ((ceil(gStart) ~= floor(gStart)) || (ceil(gEnd) ~= floor(gEnd)) || ...
@@ -62,7 +75,11 @@ if (gStart > gEnd)
 end
 
 % block probability matrix
-B = (0.5 - epsilonInB)*ones(nBlock, nBlock) + 2*epsilonInB*eye(nBlock);
+B = (muB - epsilonInB)*ones(nBlock, nBlock) + 2*epsilonInB*eye(nBlock);
+
+%%% --- For Minh's Model --- %%%
+B = [0.42, 0.42; 0.42, 0.5];
+rho = [0.6, 0.4];
 
 % true tau_star (1-by-nVertex)
 tauStar = [];
@@ -71,115 +88,130 @@ for i = 1:nBlock
     tauStar = [tauStar, i*ones(1, nVectorStar(i))];
 end
 
+%% --- Optimization Setting ---
+options = optimoptions('fmincon', 'TolX', 1e-6, ...
+    'MaxIter', 5000, 'MaxFunEvals', 5000, ...
+    'Algorithm', 'interior-point'); %, 'GradObj', 'on');
+% Algorithm: 'interior-point', 'trust-region-reflective', 'sqp', 'active-set'
+projectoptions = optimoptions('fmincon', 'TolX', 1e-6, 'MaxIter', ...
+    10000, 'MaxFunEvals', 10000);
+
 %% --- Parallel Computing ---
-% if isempty(gcp('nocreate'))
-%     parpool(nCore);
-% end
 delete(gcp('nocreate'))
 parpool(nCore);
 
+% lambdaVec = [0.001 0.01 0.5 0.8 0.9 0.95 0.99 0.995 0.999];
+lambdaVec = [0.001 0.01 0.1 0.9 0.99 0.999];
+
 parfor iGraph = gStart:gEnd
+    
+    rng shuffle;
     
     %% --- Generate/Read Data ---
     % Generate data if there does not exist one, otherwise read the
     % existing data.
-    [adjMatrix, nuHat, ~, tauHat, ~] = ...
-        datagenerator(nVertex, nBlock, dimLatentPosition, B, rho, ...
-        epsilonInB, iGraph);
-    xHat = asge(adjMatrix, dimLatentPosition);
+    % if r = -1 then follows a SBM exactly, otherwise follows a Dirichlet
+    % prior.
+    [adjMatrix, nuHat0, ~, tauHat0, ~] = ...
+        datagenerator(nVertex, nBlock, dimLatentPosition, B, ...
+        rho, tauStar, r, iGraph, projectoptions);
+    xHat0 = asge(adjMatrix, dimLatentPosition);
+    
+    % Pre-projection
+    rotationMatrix = fmincon(@(x) projectobjectivefun(x, ...
+        dimLatentPosition, xHat0), ...
+        reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
+        [], [], [], [], - ones(dimLatentPosition^2, 1), ...
+        ones(dimLatentPosition^2, 1), @(x) ...
+        projectconditionfun(x, nVertex, dimLatentPosition, xHat0), ...
+        projectoptions);
+    rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
+        dimLatentPosition);
+    
+    % Rotate the latent positions
+    xHat0 = xHat0*rotationMatrix;
+    nuHat0 = nuHat0*rotationMatrix;
     
     %% --- ASGE ---
-    errorRateASGE = errorratecalculator(tauStar, tauHat, nVertex, nBlock);
+    errorRateASGE = errorratecalculator(tauStar, tauHat0, nVertex, nBlock);
     
-    saveFile = ['./results/results-SBMopti-sim-n' num2str(nVertex) ...
-        '-eps' num2str(epsilonInB) '-lambda' num2str(lambda) ...
-        '-graph' num2str(iGraph) '.mat'];
-    if exist(saveFile, 'file') == 0
+    for lambda = lambdaVec
         
-        % scatterdata = zeros(3,2);
+        saveFile = ['./results/results-SBMopti-Block-sim-dir-n' ...
+            num2str(nVertex) '-diag' num2str(B(1, 1)) '-offdiag' ...
+            num2str(B(1, 2)) '-r' num2str(r) '-lambda' num2str(lambda) ...
+            '-adjMatrix' num2str(iGraph) '.mat'];
         
-        %% --- Solve Optimization Problem ---
-        options = optimoptions('fmincon', 'TolX', 1e-6, ...
-            'MaxIter', 10000, 'MaxFunEvals', 10000, ...
-            'Algorithm', 'interior-point', 'GradObj', 'on');
-        % Algorithm: 'interior-point', 'trust-region-reflective', 'sqp', 'active-set'
-        projectoptions = optimoptions('fmincon', 'TolX', 1e-6, 'MaxIter', ...
-            10000, 'MaxFunEvals', 10000);
-        
-        hasConverge = 0;
-        iter = 0;
-        fValueBest = 0;
-        xHatTmp = xHat;
-        
-        % Pre-projection
-        rotationMatrix = fmincon(@(x) projectobjectivefun(x, ...
-            dimLatentPosition, xHatTmp), ...
-            reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
-            [], [], [], [], - ones(dimLatentPosition^2, 1), ...
-            ones(dimLatentPosition^2, 1), @(x) ...
-            projectconditionfun(x, nVertex, dimLatentPosition, xHatTmp), ...
-            projectoptions);
-        rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
-            dimLatentPosition);
-        
-        % Rotation
-        xHatTmp = xHatTmp*rotationMatrix;
-        nuHat = nuHat*rotationMatrix;
-        
-        fValueOld = objectivefun(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
-            adjMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat);
-        % errorOld = errorRateASGE;
-        
-        while (~hasConverge) && (iter < maxIter)
-            iter = iter + 1
+        if exist(saveFile, 'file') == 0
+            %% --- Solve Optimization Problem ---
+            hasConverge = 0;
+            iter = 0;
+            fValueBest = 0;
+            xHatTmp = xHat0;
+            nuHat = nuHat0;
+            tauHat = tauHat0;
             
-%             objectivefun(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
-%                 adjMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat)
+            fValueOld = objectivefun_std(reshape(xHatTmp, 1, ...
+                nVertex*dimLatentPosition), adjMatrix, nuHat, lambda, ...
+                nVertex, dimLatentPosition, tauHat);
             
-            % Find the best xHatTmp based on current nuHat, tauHat.
-            [xHatTmp, fValueNew] = fmincon(@(x) objectivefun(x, ...
-                adjMatrix, nuHat, lambda, nVertex, dimLatentPosition, ...
-                tauHat), reshape(xHatTmp, 1, nVertex*dimLatentPosition),...
-                [], [], [], [], zeros(dimLatentPosition*nVertex, 1), ...
-                ones(dimLatentPosition*nVertex, 1), @(x) ...
-                conditionfun(x, nVertex, dimLatentPosition), options);
-            xHatTmp = reshape(xHatTmp, nVertex, dimLatentPosition);
-            
-            % Convergence Checking
-            if (abs(fValueNew - fValueOld) < tol*fValueOld) && (iter > 1)
-                hasConverge = 1;
+            while (~hasConverge) && (iter < maxIter)
+                iter = iter + 1;
+                
+                % Find the best xHatTmp based on current nuHat, tauHat.
+                xHatTmp = fmincon(@(x) objectivefun_std(x, adjMatrix, ...
+                    nuHat, lambda, nVertex, dimLatentPosition, tauHat), ...
+                    reshape(xHatTmp, 1, nVertex*dimLatentPosition), [], ...
+                    [], [], [], zeros(dimLatentPosition*nVertex, 1), ...
+                    ones(dimLatentPosition*nVertex, 1), @(x) ...
+                    conditionfun(x, nVertex, dimLatentPosition), options);
+                xHatTmp = reshape(xHatTmp, nVertex, dimLatentPosition);
+                
+                % Find the best nuHat, tauHat based on current xHatTmp.
+                [tauHat, nuHat] = kmeans(xHatTmp, nBlock);
+                tauHat = tauHat';
+                
+                fValueNew = objectivefun_std(reshape(xHatTmp, 1, ...
+                    nVertex*dimLatentPosition), adjMatrix, nuHat, ...
+                    lambda, nVertex, dimLatentPosition, tauHat);
+                
+                if (fValueNew < fValueBest) || (iter == 1)
+                    fValueBest = fValueNew;
+                    tauBest = tauHat;
+                    xBest = xHatTmp;
+                    nuBest = nuHat;
+                end
+                
+                % Convergence Checking
+                if (abs(fValueNew - fValueOld) < tol*fValueOld) && ...
+                        (iter > 1)
+                    hasConverge = 1;
+                end
+                
+                fValueOld = fValueNew;
             end
             
-            [tauHat, nuHat] = kmeans(xHatTmp, nBlock);
-            tauHat = tauHat';
-            
-            fValueTmp = objectivefun(reshape(xHatTmp, 1, nVertex*dimLatentPosition), ...
-                adjMatrix, nuHat, lambda, nVertex, dimLatentPosition, tauHat);
-            if (fValueTmp < fValueBest) || (iter == 1)
-                fValueBest = fValueTmp;
-                tauBest = tauHat;
+            %% --- Save Results ---
+            if (hasConverge == 1)
+                errorRateOpti = errorratecalculator(tauStar, tauHat, ...
+                    nVertex, nBlock);
+                errorRateOptiBest = errorratecalculator(tauStar, ...
+                    tauBest, nVertex, nBlock);
+                % Calculate the log-likelihood of the solution
+                loglik = 0;
+                tmpB = nuBest*nuBest';
+                for i = 1:(nVertex - 1)
+                    for j = (i+1):nVertex
+                        loglik = loglik + adjMatrix(i, j)*...
+                            log(tmpB(tauBest(i), tauBest(j))) + ...
+                            (1 - adjMatrix(i, j))*...
+                            log(1 - tmpB(tauBest(i), tauBest(j)));
+                    end
+                end
+                parsave(saveFile, errorRateASGE, errorRateOpti, ...
+                    errorRateOptiBest, fValueNew, fValueBest, ...
+                    xBest, nuBest, tauBest, loglik);
             end
-            
-            % Save for scatter plot
-            % errorNew = errorratecalculator(tauStar, tauHat, ...
-            %     nVertex, nBlock);
-            % scatterdata(1, iter) = (fValueOld - fValueNew)/fValueOld;
-            % scatterdata(2, iter) = (fValueOld - fValueTmp)/fValueOld;
-            % scatterdata(3, iter) = errorOld - errorNew;
-            % errorOld = errorNew;
-            
-            fValueOld = fValueNew;
-        end
-        
-        %% --- Save Results ---
-        if (hasConverge == 1)
-            errorRateOpti = errorratecalculator(tauStar, tauHat, ...
-                nVertex, nBlock);
-            errorRateOptiBest = errorratecalculator(tauStar, tauBest, ...
-                nVertex, nBlock);
-            % parsave(saveFile, errorRateASGE, errorRateOpti, errorRateOptiBest, scatterdata);
-            parsave(saveFile, errorRateASGE, errorRateOpti, ...
-                errorRateOptiBest, fValueNew, fValueBest);
         end
     end
 end
