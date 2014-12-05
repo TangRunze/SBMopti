@@ -78,8 +78,8 @@ end
 B = (muB - epsilonInB)*ones(nBlock, nBlock) + 2*epsilonInB*eye(nBlock);
 
 %%% --- For Minh's Model --- %%%
-B = [0.42, 0.42; 0.42, 0.5];
-rho = [0.6, 0.4];
+% B = [0.42, 0.42; 0.42, 0.5];
+% rho = [0.6, 0.4];
 
 % true tau_star (1-by-nVertex)
 tauStar = [];
