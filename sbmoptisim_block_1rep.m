@@ -2,7 +2,7 @@ function [] = sbmoptisim_block_1rep(nVertex, nBlock, muB, epsilonInB, r, ...
     gStart, gEnd, nCore, maxIter, tol)
 
 %% --- Quick Setting ---
-% nVertex = 15;
+% nVertex = 150;
 % nBlock = 3;
 % dimLatentPosition = nBlock;
 % epsilonInB = 0.2;
@@ -131,8 +131,11 @@ for iProbMatrix = gStart:gEnd
     %% --- ASGE ---
     errorRateASGE = errorratecalculator(tauStar, tauHat0, nVertex, nBlock);
     
-    parfor lambda = lambdaVec
+    nLambda = length(lambdaVec);
+    
+    parfor iLambda = 1:nLambda
         
+        lambda = lambdaVec(iLambda);
         saveFile = ['./results/results-SBMopti-Block-sim-dir-n' ...
             num2str(nVertex) '-diag' num2str(B(1, 1)) '-offdiag' ...
             num2str(B(1, 2)) '-r' num2str(r) '-lambda' num2str(lambda) ...
@@ -209,7 +212,7 @@ for iProbMatrix = gStart:gEnd
     saveFile = ['./results/results-SBMopti-Block-sim-dir-n' ...
             num2str(nVertex) '-diag' num2str(B(1, 1)) '-offdiag' ...
             num2str(B(1, 2)) '-r' num2str(r) '-lambda' num2str(lambda) ...
-            '-pmatrix' num2str(iProbMatrix) '.mat']
+            '-pmatrix' num2str(iProbMatrix) '.mat'];
     
     if exist(saveFile, 'file') == 0
         
