@@ -5,6 +5,7 @@ rotationMatrix = reshape(x, dimLatentPosition, dimLatentPosition);
 
 xHat = xHatTmp*rotationMatrix;
 
-val = - min(min(abs(xHat)));
+% val = - min(min(abs(xHat)));
+val = - min(min(xHat));
 
 end
