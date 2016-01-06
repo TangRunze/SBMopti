@@ -1,4 +1,4 @@
-function [] = sbmoptisim(nVertex, nBlock, muB, epsilonInB, r, ...
+function [t] = sbmoptisim(nVertex, nBlock, muB, epsilonInB, r, ...
     gStart, gEnd, isGMM, nCore, maxIter, tol)
 
 %% --- Quick Setting ---
@@ -29,6 +29,8 @@ function [] = sbmoptisim(nVertex, nBlock, muB, epsilonInB, r, ...
 
 % nBlock selects the number of blocks in the stochastic blockmodel.
 % nBlock = 3;
+
+tic
 
 % dimLatentPosition selects the dimension of latent positions.
 dimLatentPosition = nBlock;
@@ -93,21 +95,25 @@ for i = 1:nBlock
 end
 
 %% --- Optimization Setting ---
-options = optimoptions('fmincon', 'TolX', 1e-4, ...
-    'MaxIter', 100, 'MaxFunEvals', 5000, ...
-    'Algorithm', 'interior-point'); %, 'GradObj', 'on');
+% options = optimoptions('fmincon', 'TolX', 1e-4, ...
+%     'MaxIter', 100, 'MaxFunEvals', 5000, ...
+%     'Algorithm', 'interior-point'); %, 'GradObj', 'on');
+options = optimoptions('fmincon', 'Algorithm', 'interior-point'); %, 'GradObj', 'on');
+% options = optimoptions('fmincon', 'Algorithm', 'interior-point', 'TolFun', 1e-10); %, 'GradObj', 'on');
+% options = optimoptions('fmincon', 'Algorithm', 'interior-point', 'TolFun', 1e-6); %, 'GradObj', 'on');
 % Algorithm: 'interior-point', 'trust-region-reflective', 'sqp', 'active-set'
 projectoptions = optimoptions('fmincon', 'TolX', 1e-6, 'MaxIter', ...
     100, 'MaxFunEvals', 5000);
 
 %% --- Parallel Computing ---
-delete(gcp('nocreate'))
-parpool(nCore);
+% delete(gcp('nocreate'))
+% parpool(nCore);
 
 % lambdaVec = [0.001 0.01 0.5 0.8 0.9 0.95 0.99 0.995 0.999];
 lambdaVec = [0.001 0.01 0.1 0.5 0.9 0.99 0.999];
+% lambdaVec = 0.02;
 
-parfor iGraph = gStart:gEnd
+for iGraph = gStart:gEnd
     
     rng shuffle;
     
@@ -121,8 +127,10 @@ parfor iGraph = gStart:gEnd
         rho, tauStar, r, iGraph, projectoptions);
     
     xHat0 = asge(adjMatrixDA, dimLatentPosition);
+%     xHat0 = asge(adjMatrix, dimLatentPosition);
     
     [tauHat0, nuHat0] = clusterX(xHat0, nBlock, isGMM);
+%     [tauHat0, nuHat0] = clusterX(xHat0, nBlock, 1);
     errorRateASGE = errorratecalculator(tauStar, tauHat0, nVertex, nBlock);
     
     % Get a better initialization (most positive)
@@ -163,6 +171,23 @@ parfor iGraph = gStart:gEnd
     xHat0(rowSumTmp > 1, :) = xHat0(rowSumTmp > 1, :)./ ...
         repmat(rowSumTmp(rowSumTmp > 1), 1, dimLatentPosition);
 
+
+%     % Optimize over mean
+%     rotationMatrix = fmincon(@(x) projectobjectivefun(x, ...
+%         dimLatentPosition, xHat0), ...
+%         reshape(eye(dimLatentPosition), dimLatentPosition^2, 1), ...
+%         [], [], [], [], - ones(dimLatentPosition^2, 1), ...
+%         ones(dimLatentPosition^2, 1), @(x) ...
+%         projectconditionfun(x, nVertex, dimLatentPosition, xHat0),...
+%         projectoptions);
+%     rotationMatrix = reshape(rotationMatrix, dimLatentPosition, ...
+%         dimLatentPosition);
+%     
+%     % Rotation
+%     xHat0 = xHat0*rotationMatrix;
+%     nuHat0 = nuHat0*rotationMatrix;
+    
+    
     
     for lambda = lambdaVec
         
@@ -234,12 +259,14 @@ parfor iGraph = gStart:gEnd
                 
                 parsavesim(saveFile, errorRateASGE, errorRateOpti, xBest, ...
                     nuBest, tauBest, xHat0, nuHat0, tauHat0, loglikASGE,...
-                    loglikOpti);
+                    loglikOpti, hasConverge);
             end
         end
     end
 end
 
+t = toc;
+
 %% --- Close Parallel Computing ---
-delete(gcp('nocreate'))
+% delete(gcp('nocreate'))
 
