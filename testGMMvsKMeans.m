@@ -32,14 +32,14 @@ for i=1:nmc
     
     % Calculation
     % Calculate estimated latent positions
-    xHat_k = asge(adjMatrixDA, dimLatentPosition);
+    xHat = asge(adjMatrixDA, dimLatentPosition);
     
     % Cluster using K-Means
-    [tauHat_k, nuHat_k] = clusterX(xHat_k, nBlock, 0);
+    [tauHat_k, nuHat_k] = clusterX(xHat, nBlock, 0);
     errorRateASGE_k(i) = errorratecalculator(tauStar, tauHat_k, nVertex, nBlock);
     
     % Cluster using GMM
-    [tauHat_g, nuHat_g] = clusterX(xHat_k, nBlock, 1);
+    [tauHat_g, nuHat_g] = clusterX(xHat, nBlock, 1);
     errorRateASGE_g(i) = errorratecalculator(tauStar, tauHat_g, nVertex, nBlock);
     
 end
@@ -60,7 +60,7 @@ plot(errorRateASGE_g+eps), set(gca,'yscale','log')
 plot(errorRateASGE_k+eps), set(gca,'yscale','log')
 legend('gmm','kmeans')
 
-figure(5), clf, 
+figure(3), clf, 
 hist(errorRateASGE_g-errorRateASGE_k,50)
 
 %%
@@ -70,20 +70,72 @@ i=i+1;
 
 % Calculation
 % Calculate estimated latent positions
-xHat_k = asge(adjMatrixDA, dimLatentPosition);
+xHat = asge(adjMatrixDA, dimLatentPosition);
 
 % Cluster using K-Means
-[tauHat_k, nuHat_k] = clusterX(xHat_k, nBlock, 0);
+[tauHat_k, nuHat_k] = clusterX(xHat, nBlock, 0);
 errorRateASGE_k(i) = errorratecalculator(tauStar, tauHat_k, nVertex, nBlock);
 
 % Cluster using GMM
-[tauHat_g, nuHat_g] = clusterX(xHat_k, nBlock, 1);
+[tauHat_g, nuHat_g] = clusterX(xHat, nBlock, 1);
 errorRateASGE_g(i) = errorratecalculator(tauStar, tauHat_g, nVertex, nBlock);
 
 
 [errorRateASGE_k(i), errorRateASGE_g(i)]
 
-figure(3), clf, plot2Dxhat(xHat_k, nuHat_k, tauStar, nuStar, nuHat_g); 
+figure(4), clf, plot2Dxhat(xHat, nuHat_k, tauStar, nuStar, nuHat_g); 
 title(['kmeans=', num2str(errorRateASGE_k(i)), ' gmm= ', num2str(errorRateASGE_g(i))])
 % figure(4), clf, plot3Dxhat(xHat_k, nuHat_g, tauStar); title('gmm')
+
+
+
+
+
+
+
+
+%% pdf
+
+i = i+1;
+[adjMatrix, adjMatrixDA, nuStar] =  datagenerator(nVertex, nBlock, ...
+    dimLatentPosition, B, rho, tauStar, r, i, projectoptions);
+
+% Calculation
+% Calculate estimated latent positions
+xHat = asge(adjMatrixDA, dimLatentPosition);
+
+% Cluster using K-Means
+[tauHat_k, nuHat_k] = clusterX(xHat, nBlock, 0);
+errorRateASGE_k(i) = errorratecalculator(tauStar, tauHat_k, nVertex, nBlock);
+
+% Cluster using GMM
+% [tauHat_g, nuHat_g] = clusterX(xHat, nBlock, 1);
+% errorRateASGE_g(i) = errorratecalculator(tauStar, tauHat_g, nVertex, nBlock);
+gm = fitgmdist(xHat, nBlock, 'Start', 'plus');
+tauHat_g = cluster(gm, xHat)';
+nuHat_g = gm.mu;
+sigmaHat_g = gm.Sigma;
+proportionHat_g = gm.ComponentProportion;
+
+errorRateASGE_g(i) = errorratecalculator(tauStar, tauHat_g, nVertex, nBlock);
+
+
+[errorRateASGE_k(i), errorRateASGE_g(i)]
+
+figure(5), clf, plot3DxhatPDF(xHat, tauStar, nuStar, nuHat_k, nuHat_g, ...
+    sigmaHat_g, proportionHat_g); 
+title(['kmeans=', num2str(errorRateASGE_k(i)), ' gmm= ', num2str(errorRateASGE_g(i))])
+
+
+
+% Check GMM clustering
+figure(6), clf, plot3DxhatPDF(xHat, tauHat_g, nuStar, nuHat_k, nuHat_g, ...
+    sigmaHat_g, proportionHat_g); 
+
+
+
+
+
+
+
 
