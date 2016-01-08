@@ -57,7 +57,7 @@ if exist(['data/sim-dir-n' num2str(nVertex) '-diag' num2str(B(1, 1)) ...
     % Save the data
     save(['data/sim-dir-n' num2str(nVertex) '-diag' num2str(B(1, 1)) ...
         '-offdiag' num2str(B(1, 2)) '-r' num2str(r) '-graph' ...
-        int2str(iGraph) '.mat'], 'adjMatrixDA', 'adjMatrix');
+        int2str(iGraph) '.mat'], 'adjMatrixDA', 'adjMatrix', 'nuStar');
 else
     % Read the existing data
     data = load(['data/sim-dir-n' num2str(nVertex) '-diag' num2str(B(1, 1)) ...
@@ -65,4 +65,5 @@ else
         int2str(iGraph) '.mat']);
     adjMatrixDA = data.adjMatrixDA;
     adjMatrix = data.adjMatrix;
+    nuStar = data.nuStar;
 end
