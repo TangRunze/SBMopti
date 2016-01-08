@@ -134,6 +134,9 @@ figure(6), clf, plot3DxhatPDF(xHat, tauHat_g, nuStar, nuHat_k, nuHat_g, ...
 
 
 
+% Check GMM clustering
+figure(7), clf, plot3DxhatPDF(xHat, tauHat_k, nuStar, nuHat_k, nuHat_g, ...
+    sigmaHat_g, proportionHat_g); 
 
 
 
