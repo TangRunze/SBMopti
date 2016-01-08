@@ -2,7 +2,7 @@ function plot3DxhatPDF(xHat, tauStar, nuStar, nuHat_k, nuHat_g, ...
     sigmaHat_g, proportionHat_g)
 
 
-[~, nuStar] = procrustes(nuHat_g, nuStar);
+nuStar = rotate2D(nuStar, nuHat_g);
 
 %% Plot Components
 
