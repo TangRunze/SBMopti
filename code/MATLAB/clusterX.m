@@ -8,7 +8,7 @@ if (isGMM == 1)
     % gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM);
     
     % Using GMM++
-    % gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM, 'Start', 'plus');
+    gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM, 'Start', 'plus');
     
     % Initialized using K-Means++, constrained
 %     [~, muHat] = kmeans(X, nBlock, 'Replicates', replicatesKMeans);
@@ -19,9 +19,9 @@ if (isGMM == 1)
 %         'SharedCovariance', true, 'Start', S);
     
     % GMM++, constrained
-    gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM, ...
-        'CovarianceType', 'diagonal', 'SharedCovariance', true, ...
-        'Start', 'plus');
+%     gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM, ...
+%         'CovarianceType', 'diagonal', 'SharedCovariance', true, ...
+%         'Start', 'plus');
     
     tauHat = cluster(gm, X)';
     muHat = gm.mu;

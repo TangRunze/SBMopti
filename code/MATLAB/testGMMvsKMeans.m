@@ -15,7 +15,8 @@ ofd = 0.2;
 nVertex = 150;
 rho = ones(nBlock,1)/nBlock;
 nB = rho(1)*nVertex;
-tauStar = [ones(nB,1)', 2*ones(nB,1)']; %3*ones(nB,1)]';
+tauStar = [ones(nB,1)', 2*ones(nB,1)'];
+% tauStar = [ones(nB,1)', 2*ones(nB,1)' 3*ones(nB,1)'];
 % B=[ond ofd ofd; ofd ond ofd; ofd ofd ond];
 B = [ond ofd; ofd ond];
 
@@ -155,4 +156,58 @@ figure(7), clf, plot3DxhatPDF(xHat, tauHat_k, nuStar, nuHat_k, nuHat_g, ...
 figure(8), clf, plot2Dxhatheatmap(xHat, nuHat_k, tauStar, nuStar, nuHat_g); 
 title(['kmeans=', num2str(errorRateASGE_k(i)), ' gmm=', ...
     num2str(errorRateASGE_g(i))])
+
+
+
+%% Test on GMM data
+
+nVertex = 150;
+nBlock = 2;
+dimLatentPosition = 2;
+rho = [0.5, 0.5];
+t = 1;
+mu1 = [-t, -t];
+mu2 = [t, t];
+sigma1 = [1, 0; 0, 1];
+sigma2 = [1, 0; 0, 2];
+xHat = zeros(nVertex, dimLatentPosition);
+
+nmc = 100;
+
+errorRateASGE_k = nan(1, nmc);
+errorRateASGE_g = nan(1, nmc);
+
+for i = 1:nmc
+    tauStar = (rand(1, nVertex) > rho(1)) + 1;
+    nv1 = (tauStar == 1);
+    nv2 = (tauStar == 2);
+    xHat(nv1, :) = mvnrnd(mu1, sigma1, sum(nv1));
+    xHat(nv2, :) = mvnrnd(mu2, sigma2, sum(nv2));
+
+    % Cluster using K-Means
+    [tauHat_k, ~] = clusterX(xHat, nBlock, 0);
+    errorRateASGE_k(i) = errorratecalculator(tauStar, tauHat_k, ...
+        nVertex, nBlock);
+    
+    % Cluster using GMM
+    [tauHat_g, ~] = clusterX(xHat, nBlock, 1);
+    errorRateASGE_g(i) = errorratecalculator(tauStar, tauHat_g, ...
+        nVertex, nBlock);
+end
+
+hist(errorRateASGE_g - errorRateASGE_k)
+title('histogram of error rate of GMM - error rate of K-Means');
+xlabel('error rate of GMM - error rate of K-Means');
+ylabel('Count over 100 replicates');
+[mean(errorRateASGE_k) mean(errorRateASGE_g)]
+
+%%
+plot(xHat(nv1, 1), xHat(nv1, 2), '.r')
+hold on;
+plot(xHat(nv2, 1), xHat(nv2, 2), '.b')
+legend('Cluster 1', 'Cluster 2');
+
+
+
+
 
