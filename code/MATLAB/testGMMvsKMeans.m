@@ -24,7 +24,7 @@ B = [ond ofd; ofd ond];
 
 %% sample graphs and estimate stuff
 
-nmc = 10;
+nmc = 100;
 errorRateASGE_k = nan(nmc,1);
 errorRateASGE_g = nan(nmc,1);
 
@@ -50,6 +50,11 @@ for i=1:nmc
 end
 i = nmc;
 
+hist(errorRateASGE_g - errorRateASGE_k)
+title('histogram of error rate of GMM - error rate of K-Means');
+xlabel('error rate of GMM - error rate of K-Means');
+ylabel('Count over 100 replicates');
+[mean(errorRateASGE_k) mean(errorRateASGE_g)]
 
 %%
 eps = 10^-4;
