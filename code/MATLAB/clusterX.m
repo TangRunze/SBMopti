@@ -1,7 +1,7 @@
 function [tauHat, muHat] = clusterX(X, nBlock, isGMM)
 
-replicatesGMM = 1;
-replicatesKMeans = 1;
+replicatesGMM = 5;
+replicatesKMeans = 5;
 
 if (isGMM == 1)
     % Using GMM
@@ -10,16 +10,18 @@ if (isGMM == 1)
     % Using GMM++
     % gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM, 'Start', 'plus');
     
-    % Covariance matrices = I
-    % gm = fitgmdist(X, nBlock, 'SharedCovariance', true);
+    % Initialized using K-Means++, constrained
+%     [~, muHat] = kmeans(X, nBlock, 'Replicates', replicatesKMeans);
+%     S.mu = muHat;
+%     S.Sigma = ones(1, size(X, 2));
+%     S.ComponentProportion = repmat(1/nBlock, 1, nBlock);
+%     gm = fitgmdist(X, nBlock, 'CovarianceType', 'diagonal', ...
+%         'SharedCovariance', true, 'Start', S);
     
-    % Initialized using K-Means++
-    [~, muHat] = kmeans(X, nBlock, 'Replicates', replicatesKMeans);
-    S.mu = muHat;
-    S.Sigma = ones(1, size(X, 2));
-    S.ComponentProportion = repmat(1/nBlock, 1, nBlock);
-    gm = fitgmdist(X, nBlock, 'CovarianceType', 'diagonal', ...
-        'SharedCovariance', true, 'Start', S);
+    % GMM++, constrained
+    gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM, ...
+        'CovarianceType', 'diagonal', 'SharedCovariance', true, ...
+        'Start', 'plus');
     
     tauHat = cluster(gm, X)';
     muHat = gm.mu;
