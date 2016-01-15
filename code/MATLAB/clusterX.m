@@ -5,10 +5,10 @@ replicatesKMeans = 5;
 
 if (isGMM == 1)
     % Using GMM
-    % gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM);
+    gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM);
     
     % Using GMM++
-    gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM, 'Start', 'plus');
+%     gm = fitgmdist(X, nBlock, 'Replicates', replicatesGMM, 'Start', 'plus');
     
     % Initialized using K-Means++, constrained
 %     [~, muHat] = kmeans(X, nBlock, 'Replicates', replicatesKMeans);
