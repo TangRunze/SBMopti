@@ -54,3 +54,54 @@ for (i in 1:nmc) {
 hist(errorRateASGE_g - errorRateASGE_k)
 
 c(mean(errorRateASGE_k), mean(errorRateASGE_g))
+
+
+
+## Test the difference of different algorithms for 1 replicate
+
+nmc = nmc + 1;
+
+tauStar = (runif(nVertex) > rho[1]) + 1;
+nv1 = (tauStar == 1);
+nv2 = (tauStar == 2);
+xHat[nv1, ] = mvrnorm(sum(nv1), mu1, sigma1);
+xHat[nv2, ] = mvrnorm(sum(nv2), mu2, sigma2);
+
+nIter = 50;
+
+errorRateASGE_k_1rep = rep(0, nIter);
+errorRateASGE_g_1rep = rep(0, nIter);
+
+for (i in 1:nIter) {
+  set.seed(i)
+  
+  # Cluster using K-Means
+  cl_kmeans <- kmeans(xHat, nBlock);
+  tauHat_k <- cl_kmeans$cluster;
+  
+  # Cluster using GMM
+  # cl_GMM <- Mclust(xHat, nBlock);
+  cl_GMM <- Mclust(xHat, nBlock, modelNames=c("EII"));
+  tauHat_g <- cl_GMM$classification;
+  
+  errorRateASGE_k_1rep[i] = min(sum(tauHat_k != tauStar), sum(tauHat_k != (3 - tauStar)))/nVertex;
+  errorRateASGE_g_1rep[i] = min(sum(tauHat_g != tauStar), sum(tauHat_g != (3 - tauStar)))/nVertex;
+    
+}
+
+errorRateASGE_k_1rep
+errorRateASGE_g_1rep
+
+# p_k <- hist(errorRateASGE_k_1rep)
+# p_g <- hist(errorRateASGE_g_1rep)
+# minError <- min(c(errorRateASGE_k_1rep, errorRateASGE_g_1rep))
+# maxError <- max(c(errorRateASGE_k_1rep, errorRateASGE_g_1rep))
+# plot( p_k, col=rgb(0,0,1,1/4), xlim=c(minError,maxError))
+# plot( p_g, col=rgb(1,0,0,1/4), xlim=c(minError,maxError), add=T)
+
+
+set.seed(42)
+p1 <- hist(rnorm(500,4))                     # centered at 4
+p2 <- hist(rnorm(500,6))                     # centered at 6
+plot( p1, col=rgb(0,0,1,1/4), xlim=c(0,10))  # first histogram
+plot( p2, col=rgb(1,0,0,1/4), xlim=c(0,10), add=T)  # second
