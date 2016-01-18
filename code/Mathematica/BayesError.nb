@@ -1,0 +1,361 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 9.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       157,          7]
+NotebookDataLength[     11764,        351]
+NotebookOptionsPosition[     10850,        316]
+NotebookOutlinePosition[     11207,        332]
+CellTagsIndexPosition[     11164,        329]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"f", "[", 
+   RowBox[{"x_", ",", "y_"}], "]"}], ":=", 
+  RowBox[{"PDF", "[", 
+   RowBox[{
+    RowBox[{"BinormalDistribution", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "t"}], ",", 
+        RowBox[{"-", "t"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", "1"}], "}"}], ",", "0"}], "]"}], ",", 
+    RowBox[{"{", 
+     RowBox[{"x", ",", "y"}], "}"}]}], "]"}]}]], "Input",
+ CellChangeTimes->{{3.662115523445403*^9, 3.6621156022305098`*^9}, {
+  3.662115652863806*^9, 3.662115674986966*^9}, {3.662116038629807*^9, 
+  3.6621160530400352`*^9}}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"g", "[", 
+   RowBox[{"x_", ",", "y_"}], "]"}], 
+  RowBox[{"PDF", "[", 
+   RowBox[{
+    RowBox[{"BinormalDistribution", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"t", ",", "t"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"1", ",", 
+        RowBox[{"Sqrt", "[", "2", "]"}]}], "}"}], ",", "0"}], "]"}], ",", 
+    RowBox[{"{", 
+     RowBox[{"x", ",", "y"}], "}"}]}], "]"}]}]], "Input",
+ CellChangeTimes->{{3.662115611110742*^9, 3.662115617765394*^9}, {
+  3.66211565802873*^9, 3.662115679445447*^9}, {3.662116041281637*^9, 
+  3.662116059428752*^9}}],
+
+Cell[BoxData[
+ FractionBox[
+  SuperscriptBox["\[ExponentialE]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"-", 
+      FractionBox["1", "2"]}], " ", 
+     SuperscriptBox[
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{"-", "1"}], "+", "x"}], ")"}], "2"]}], "-", 
+    RowBox[{
+     FractionBox["1", "4"], " ", 
+     SuperscriptBox[
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{"-", "1"}], "+", "y"}], ")"}], "2"]}]}]], 
+  RowBox[{"2", " ", 
+   SqrtBox["2"], " ", "\[Pi]"}]]], "Output",
+ CellChangeTimes->{
+  3.6621156248678513`*^9, {3.662115660517687*^9, 3.662115679887768*^9}}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"NIntegrate", "[", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"Boole", "[", 
+     RowBox[{
+      FractionBox[
+       SuperscriptBox["\[ExponentialE]", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"-", 
+           FractionBox["1", "2"]}], " ", 
+          SuperscriptBox[
+           RowBox[{"(", 
+            RowBox[{"1", "+", "x"}], ")"}], "2"]}], "-", 
+         RowBox[{
+          FractionBox["1", "2"], " ", 
+          SuperscriptBox[
+           RowBox[{"(", 
+            RowBox[{"1", "+", "y"}], ")"}], "2"]}]}]], 
+       RowBox[{"2", " ", "\[Pi]"}]], "<", 
+      FractionBox[
+       SuperscriptBox["\[ExponentialE]", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"-", 
+           FractionBox["1", "2"]}], " ", 
+          SuperscriptBox[
+           RowBox[{"(", 
+            RowBox[{
+             RowBox[{"-", "1"}], "+", "x"}], ")"}], "2"]}], "-", 
+         RowBox[{
+          FractionBox["1", "4"], " ", 
+          SuperscriptBox[
+           RowBox[{"(", 
+            RowBox[{
+             RowBox[{"-", "1"}], "+", "y"}], ")"}], "2"]}]}]], 
+       RowBox[{"2", " ", 
+        SqrtBox["2"], " ", "\[Pi]"}]]}], "]"}], "*", 
+    FractionBox[
+     SuperscriptBox["\[ExponentialE]", 
+      RowBox[{
+       RowBox[{
+        RowBox[{"-", 
+         FractionBox["1", "2"]}], " ", 
+        SuperscriptBox[
+         RowBox[{"(", 
+          RowBox[{"1", "+", "x"}], ")"}], "2"]}], "-", 
+       RowBox[{
+        FractionBox["1", "2"], " ", 
+        SuperscriptBox[
+         RowBox[{"(", 
+          RowBox[{"1", "+", "y"}], ")"}], "2"]}]}]], 
+     RowBox[{"2", " ", "\[Pi]"}]]}], ",", 
+   RowBox[{"{", 
+    RowBox[{"x", ",", 
+     RowBox[{"-", "Infinity"}], ",", "Infinity"}], "}"}], ",", 
+   RowBox[{"{", 
+    RowBox[{"y", ",", 
+     RowBox[{"-", "Infinity"}], ",", "Infinity"}], "}"}]}], "]"}]], "Input",
+ CellChangeTimes->{{3.662115626606535*^9, 3.662115631308133*^9}, {
+   3.662115690639985*^9, 3.6621157028892593`*^9}, {3.662115750079238*^9, 
+   3.6621158159043293`*^9}, 3.662115893967751*^9}],
+
+Cell[BoxData[
+ RowBox[{
+  StyleBox[
+   RowBox[{"NIntegrate", "::", "slwcon"}], "MessageName"], 
+  RowBox[{
+  ":", " "}], "\<\"Numerical integration converging too slowly; suspect one \
+of the following: singularity, value of the integration is 0, highly \
+oscillatory integrand, or WorkingPrecision too small. \\!\\(\\*ButtonBox[\\\"\
+\[RightSkeleton]\\\", ButtonStyle->\\\"Link\\\", ButtonFrame->None, \
+ButtonData:>\\\"paclet:ref/message/NIntegrate/slwcon\\\", ButtonNote -> \
+\\\"NIntegrate::slwcon\\\"]\\)\"\>"}]], "Message", "MSG",
+ CellChangeTimes->{{3.662115791061651*^9, 3.662115819006433*^9}, 
+   3.662115897408265*^9}],
+
+Cell[BoxData[
+ RowBox[{
+  StyleBox[
+   RowBox[{"NIntegrate", "::", "eincr"}], "MessageName"], 
+  RowBox[{
+  ":", " "}], "\<\"The global error of the strategy GlobalAdaptive has \
+increased more than \[NoBreak]\\!\\(2000\\)\[NoBreak] times. The global error \
+is expected to decrease monotonically after a number of integrand \
+evaluations. Suspect one of the following: the working precision is \
+insufficient for the specified precision goal; the integrand is highly \
+oscillatory or it is not a (piecewise) smooth function; or the true value of \
+the integral is 0. Increasing the value of the GlobalAdaptive option \
+MaxErrorIncreases might lead to a convergent numerical integration. \
+NIntegrate obtained \[NoBreak]\\!\\(0.08518235284477914`\\)\[NoBreak] and \
+\[NoBreak]\\!\\(0.00002496445233730447`\\)\[NoBreak] for the integral and \
+error estimates. \\!\\(\\*ButtonBox[\\\"\[RightSkeleton]\\\", ButtonStyle->\\\
+\"Link\\\", ButtonFrame->None, \
+ButtonData:>\\\"paclet:ref/message/NIntegrate/eincr\\\", ButtonNote -> \
+\\\"NIntegrate::eincr\\\"]\\)\"\>"}]], "Message", "MSG",
+ CellChangeTimes->{{3.662115791061651*^9, 3.662115819006433*^9}, 
+   3.6621158993569613`*^9}],
+
+Cell[BoxData["0.08518235284477914`"], "Output",
+ CellChangeTimes->{
+  3.66211570437705*^9, {3.6621157911725607`*^9, 3.66211582100744*^9}, 
+   3.662115899411826*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"NIntegrate", "[", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"Boole", "[", 
+     RowBox[{
+      FractionBox[
+       SuperscriptBox["\[ExponentialE]", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"-", 
+           FractionBox["1", "2"]}], " ", 
+          SuperscriptBox[
+           RowBox[{"(", 
+            RowBox[{"1", "+", "x"}], ")"}], "2"]}], "-", 
+         RowBox[{
+          FractionBox["1", "2"], " ", 
+          SuperscriptBox[
+           RowBox[{"(", 
+            RowBox[{"1", "+", "y"}], ")"}], "2"]}]}]], 
+       RowBox[{"2", " ", "\[Pi]"}]], ">", 
+      FractionBox[
+       SuperscriptBox["\[ExponentialE]", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"-", 
+           FractionBox["1", "2"]}], " ", 
+          SuperscriptBox[
+           RowBox[{"(", 
+            RowBox[{
+             RowBox[{"-", "1"}], "+", "x"}], ")"}], "2"]}], "-", 
+         RowBox[{
+          FractionBox["1", "4"], " ", 
+          SuperscriptBox[
+           RowBox[{"(", 
+            RowBox[{
+             RowBox[{"-", "1"}], "+", "y"}], ")"}], "2"]}]}]], 
+       RowBox[{"2", " ", 
+        SqrtBox["2"], " ", "\[Pi]"}]]}], "]"}], "*", 
+    FractionBox[
+     SuperscriptBox["\[ExponentialE]", 
+      RowBox[{
+       RowBox[{
+        RowBox[{"-", 
+         FractionBox["1", "2"]}], " ", 
+        SuperscriptBox[
+         RowBox[{"(", 
+          RowBox[{
+           RowBox[{"-", "1"}], "+", "x"}], ")"}], "2"]}], "-", 
+       RowBox[{
+        FractionBox["1", "4"], " ", 
+        SuperscriptBox[
+         RowBox[{"(", 
+          RowBox[{
+           RowBox[{"-", "1"}], "+", "y"}], ")"}], "2"]}]}]], 
+     RowBox[{"2", " ", 
+      SqrtBox["2"], " ", "\[Pi]"}]]}], ",", 
+   RowBox[{"{", 
+    RowBox[{"x", ",", 
+     RowBox[{"-", "Infinity"}], ",", "Infinity"}], "}"}], ",", 
+   RowBox[{"{", 
+    RowBox[{"y", ",", 
+     RowBox[{"-", "Infinity"}], ",", "Infinity"}], "}"}]}], "]"}]], "Input",
+ CellChangeTimes->{{3.662115626606535*^9, 3.662115631308133*^9}, {
+   3.662115690639985*^9, 3.6621157028892593`*^9}, {3.662115750079238*^9, 
+   3.6621158159043293`*^9}, 3.662115898713553*^9}],
+
+Cell[BoxData[
+ RowBox[{
+  StyleBox[
+   RowBox[{"NIntegrate", "::", "slwcon"}], "MessageName"], 
+  RowBox[{
+  ":", " "}], "\<\"Numerical integration converging too slowly; suspect one \
+of the following: singularity, value of the integration is 0, highly \
+oscillatory integrand, or WorkingPrecision too small. \\!\\(\\*ButtonBox[\\\"\
+\[RightSkeleton]\\\", ButtonStyle->\\\"Link\\\", ButtonFrame->None, \
+ButtonData:>\\\"paclet:ref/message/NIntegrate/slwcon\\\", ButtonNote -> \
+\\\"NIntegrate::slwcon\\\"]\\)\"\>"}]], "Message", "MSG",
+ CellChangeTimes->{3.662115903142776*^9}],
+
+Cell[BoxData[
+ RowBox[{
+  StyleBox[
+   RowBox[{"NIntegrate", "::", "eincr"}], "MessageName"], 
+  RowBox[{
+  ":", " "}], "\<\"The global error of the strategy GlobalAdaptive has \
+increased more than \[NoBreak]\\!\\(2000\\)\[NoBreak] times. The global error \
+is expected to decrease monotonically after a number of integrand \
+evaluations. Suspect one of the following: the working precision is \
+insufficient for the specified precision goal; the integrand is highly \
+oscillatory or it is not a (piecewise) smooth function; or the true value of \
+the integral is 0. Increasing the value of the GlobalAdaptive option \
+MaxErrorIncreases might lead to a convergent numerical integration. \
+NIntegrate obtained \[NoBreak]\\!\\(0.10465985854932391`\\)\[NoBreak] and \
+\[NoBreak]\\!\\(0.0000329330787623865`\\)\[NoBreak] for the integral and \
+error estimates. \\!\\(\\*ButtonBox[\\\"\[RightSkeleton]\\\", ButtonStyle->\\\
+\"Link\\\", ButtonFrame->None, \
+ButtonData:>\\\"paclet:ref/message/NIntegrate/eincr\\\", ButtonNote -> \
+\\\"NIntegrate::eincr\\\"]\\)\"\>"}]], "Message", "MSG",
+ CellChangeTimes->{3.662115905112225*^9}],
+
+Cell[BoxData["0.10465985854932391`"], "Output",
+ CellChangeTimes->{3.6621159051629963`*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"0.08518235284477914`", "*", 
+   RowBox[{"1", "/", "2"}]}], "+", 
+  RowBox[{"0.10465985854932391`", "*", 
+   RowBox[{"1", "/", "2"}]}]}]], "Input",
+ CellChangeTimes->{{3.66211591260892*^9, 3.662115921332625*^9}}],
+
+Cell[BoxData["0.09492110569705153`"], "Output",
+ CellChangeTimes->{3.662115922024087*^9}]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.6621159096712112`*^9, 3.662115910340193*^9}}]
+},
+WindowSize->{740, 756},
+WindowMargins->{{Automatic, 305}, {25, Automatic}},
+FrontEndVersion->"9.0 for Mac OS X x86 (32-bit, 64-bit Kernel) (January 25, \
+2013)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[557, 20, 620, 18, 28, "Input"],
+Cell[CellGroupData[{
+Cell[1202, 42, 598, 17, 28, "Input"],
+Cell[1803, 61, 585, 20, 62, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[2425, 86, 2020, 62, 96, "Input"],
+Cell[4448, 150, 628, 12, 60, "Message"],
+Cell[5079, 164, 1177, 20, 132, "Message"],
+Cell[6259, 186, 164, 3, 28, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[6460, 194, 2100, 65, 96, "Input"],
+Cell[8563, 261, 578, 11, 60, "Message"],
+Cell[9144, 274, 1124, 19, 132, "Message"],
+Cell[10271, 295, 91, 1, 28, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[10399, 301, 246, 6, 28, InheritFromParent],
+Cell[10648, 309, 89, 1, 62, "Output"]
+}, Open  ]],
+Cell[10752, 313, 94, 1, 28, "Input"]
+}
+]
+*)
+
+(* End of internal cache information *)
+
